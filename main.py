@@ -1,14 +1,14 @@
-from flask import Flask, request, jsonify
+import os
 import hmac
 import hashlib
 import base64
 import datetime
-import os
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# ✅ Security: Set your own API key
-SECURE_API_KEY = "mysecureapikey123"  # Change this before deploying!
+# Retrieve secure API key from environment variables
+SECURE_API_KEY = os.getenv("SECURE_API_KEY", "")
 
 def generate_auth_headers(api_key_id, api_secret, api_path):
     # 🔹 Generate UTC Timestamp
@@ -42,19 +42,24 @@ def home():
 
 @app.route("/calculate-auth", methods=["GET"])
 def calculate_auth():
-    # ✅ Check if API key is provided
-    provided_api_key = request.args.get("api_key")
-    if not provided_api_key or provided_api_key != SECURE_API_KEY:
-        return jsonify({"error": "Unauthorized"}), 403
-
-    # ✅ Get the required parameters
+    api_key = request.args.get("api_key")
     api_key_id = request.args.get("api_key_id")
     api_secret = request.args.get("api_secret")
     api_path = request.args.get("api_path")
 
+    # Debugging: Log received API key and expected API key
+    print(f"🔹 Received API Key: {api_key}")
+    print(f"🔹 Expected API Key: {SECURE_API_KEY}")
+
+    # Validate API key
+    if api_key != SECURE_API_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Validate required parameters
     if not all([api_key_id, api_secret, api_path]):
         return jsonify({"error": "Missing required parameters"}), 400
 
+    # Generate and return authentication headers
     auth_headers = generate_auth_headers(api_key_id, api_secret, api_path)
     return jsonify(auth_headers)
 

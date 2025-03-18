@@ -3,8 +3,12 @@ import hmac
 import hashlib
 import base64
 import datetime
+import os
 
 app = Flask(__name__)
+
+# ✅ Security: Set your own API key
+SECURE_API_KEY = "mysecureapikey123"  # Change this before deploying!
 
 def generate_auth_headers(api_key_id, api_secret, api_path):
     # 🔹 Generate UTC Timestamp
@@ -34,10 +38,16 @@ def generate_auth_headers(api_key_id, api_secret, api_path):
 
 @app.route("/")
 def home():
-    return "Flask API is running! Use /calculate-auth to generate headers."
+    return "Flask API is running securely! Use /calculate-auth with API_KEY."
 
 @app.route("/calculate-auth", methods=["GET"])
 def calculate_auth():
+    # ✅ Check if API key is provided
+    provided_api_key = request.args.get("api_key")
+    if not provided_api_key or provided_api_key != SECURE_API_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # ✅ Get the required parameters
     api_key_id = request.args.get("api_key_id")
     api_secret = request.args.get("api_secret")
     api_path = request.args.get("api_path")

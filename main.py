@@ -73,8 +73,11 @@ def upload_file():
     except Exception as e:
         return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
+    # Force HTTPS in the download URL
+    secure_host_url = request.host_url.replace("http://", "https://")
+
     return jsonify({
-        "download_url": f"{request.host_url}download/{unique_filename}",
+        "download_url": f"{secure_host_url}download/{unique_filename}",
         "original_filename": file.filename
     })
 

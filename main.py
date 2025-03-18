@@ -49,20 +49,30 @@ def calculate_auth():
     auth_headers = generate_auth_headers(api_key_id, api_secret, api_key_public_value, api_path)
     return jsonify(auth_headers)
 
+
+import uuid
+
 @app.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-    
+        return jsonify({"error": "No file part"}), 400
+
     file = request.files["file"]
-    file_id = str(uuid.uuid4())
-    file_path = os.path.join(UPLOAD_DIR, file_id + "-" + file.filename)
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    # Generate a unique filename
+    unique_filename = f"{uuid.uuid4()}-{file.filename}"
+    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+
+    # Save the file
     file.save(file_path)
-    
-    download_url = f"https://{os.getenv('FLY_APP_NAME')}.fly.dev/download/{file_id}-{file.filename}"
-    Timer(600, lambda: os.remove(file_path) if os.path.exists(file_path) else None).start()  # Auto-delete after 10 minutes
-    
-    return jsonify({"download_url": download_url})
+
+    # Return both the original filename and the download URL
+    return jsonify({
+        "download_url": f"{request.host_url}download/{unique_filename}",
+        "original_filename": file.filename
+    })
 
 @app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):

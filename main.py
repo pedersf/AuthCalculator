@@ -5,7 +5,8 @@ import base64
 import datetime
 import os
 import uuid
-from threading import Timer
+import threading
+import time
 
 app = Flask(__name__)
 
@@ -15,6 +16,10 @@ SECURE_API_KEY = os.getenv("SECURE_API_KEY", "default_secure_key")
 # File Upload Directory
 UPLOAD_DIR = "/tmp/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)  # Ensure directory exists
+
+# File retention time (in seconds)
+DELETE_AFTER_DAYS = 10
+DELETE_AFTER_SECONDS = DELETE_AFTER_DAYS * 24 * 60 * 60  # Convert days to seconds
 
 def generate_auth_headers(api_key_id, api_secret, api_key_public_value, api_path):
     timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -93,9 +98,25 @@ def download_file(filename):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    Timer(10, delete_file).start()  # Auto-delete after 10 seconds
+    threading.Timer(10, delete_file).start()  # Auto-delete after 10 seconds
     
     return send_from_directory(UPLOAD_DIR, filename, as_attachment=True)
+
+# Background task to delete files older than 10 days
+def delete_old_files():
+    while True:
+        now = time.time()
+        for filename in os.listdir(UPLOAD_DIR):
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            if os.path.isfile(file_path):
+                file_age = now - os.path.getctime(file_path)
+                if file_age > DELETE_AFTER_SECONDS:
+                    os.remove(file_path)
+        time.sleep(3600)  # Run cleanup every hour
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=delete_old_files, daemon=True)
+cleanup_thread.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
